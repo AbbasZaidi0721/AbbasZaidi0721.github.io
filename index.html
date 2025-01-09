@@ -1,47 +1,127 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Typing Test</title>
     <style>
         body {
             font-family: sans-serif;
             text-align: center;
+            background-color: #cfe2d9;
+        }
+
+        h1 {
+            color: #333;
         }
 
         #timer {
             font-size: 20px;
             margin-bottom: 10px;
+            color: #555;
         }
 
         #text {
             font-size: 18px;
             margin-bottom: 15px;
+            color: #333;
         }
 
         #input-text {
             width: 500px;
             padding: 10px;
             font-size: 16px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
         }
 
         #stats {
             margin-top: 20px;
+            color: #333;
+        }
+
+        #start-btn, #submit-btn {
+            background-color: #4CAF50;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+
+        #achievements {
+            margin-top: 30px;
+            border: 1px solid #ccc;
+            padding: 20px;
+            border-radius: 5px;
+            background-color: blue;
+            color: #fff;
+        }
+
+        #hall-of-fame {
+            margin-top: 30px;
+            border: 1px solid #ccc;
+            padding: 20px;
+            border-radius: 5px;
+            background-color: #ffd700;
+            color: #333;
+        }
+
+        .achievement {
+            margin-bottom: 10px;
+            color: #007bff;
+        }
+
+        .level-select {
+            margin-bottom: 15px;
+        }
+
+        .missed-letter {
+            color: red;
         }
     </style>
 </head>
 <body>
     <h1>Typing Test</h1>
+    <div class="level-select">
+        <label for="level">Select Level:</label>
+        <select id="level">
+            <option value="1">Level 1 (Easy)</option>
+            <option value="2">Level 2 (Medium)</option>
+            <option value="3">Level 3 (Hard)</option>
+        </select>
+    </div>
+
     <div id="timer">Time: 0</div>
     <div id="text">
         <span id="current-char"></span>
         <span id="remaining-text"></span>
     </div>
-    <input type="text" id="input-text" autofocus>
+
+    <input type="text" id="input-text" autofocus disabled>
     <div id="stats">
         <p>WPM: <span id="wpm">0</span></p>
         <p>Accuracy: <span id="accuracy">100%</span></p>
+        <p>Errors: <span id="errors">0</span></p>
     </div>
+
     <button id="start-btn">Start Test</button>
+    <button id="submit-btn" disabled>Submit</button>
+
+    <div id="achievements">
+        <h2>Achievements</h2>
+        <div class="achievement">
+            <span id="accuracy-achievement"></span>
+        </div>
+        <div class="achievement">
+            <span id="speed-achievement"></span>
+        </div>
+    </div>
+
+    <div id="hall-of-fame">
+        <h2>Hall of Fame</h2>
+        <ul id="hof-list"></ul>
+    </div>
 
     <script>
         const textArea = document.getElementById('text');
@@ -49,33 +129,86 @@
         const timerDisplay = document.getElementById('timer');
         const wpmDisplay = document.getElementById('wpm');
         const accuracyDisplay = document.getElementById('accuracy');
+        const errorsDisplay = document.getElementById('errors');
         const startButton = document.getElementById('start-btn');
+        const submitButton = document.getElementById('submit-btn');
+        const accuracyAchievement = document.getElementById('accuracy-achievement');
+        const speedAchievement = document.getElementById('speed-achievement');
+        const hofList = document.getElementById('hof-list');
+        const levelSelect = document.getElementById('level');
 
         let text = "";
         let startTime, endTime;
         let charactersTyped = 0;
         let errors = 0;
         let timerInterval;
+        let wpm = 0;
+        let accuracy = 100;
+        let currentLevel = 1;
 
-        // Fetch sample text (replace with your preferred source)
-        fetch('https://api.quotable.io/random')
-            .then(response => response.json())
-            .then(data => {
-                text = data.content;
-                textArea.textContent = text;
-            });
+        // Paragraphs for each level
+        const paragraphFragments = [
+            "This is a simple sentence used to check the basics of typing. It contains all the letters of the English alphabet.",
+            "The city skyline was a breathtaking sight, with towering skyscrapers reaching for the sky, each one a symbol of the ingenuity and determination of the people who had built them. The streets were filled with the constant hum of activity, with workers rushing to their jobs, students heading to school, and families enjoying leisurely walks. At night, the city transformed into a sea of lights, with neon signs glowing and traffic moving in a never-ending flow. The city had its flaws, but it was a place where anything seemed possible.",
+            "In the midst of a fierce storm, the world outside seemed to disappear. The rain poured relentlessly from the sky, turning the streets into rivers. Thunder rumbled in the distance, and lightning lit up the sky like an electric pulse. Yet, despite the chaos, there was a sense of awe and wonder in the storm’s power. The wind howled, the rain fell in sheets, and the earth seemed to tremble under the force of the storm. But even as the storm raged, it was hard to ignore the beauty of it all. There was something majestic about the way the storm swept through the city, leaving a clean, fresh scent in its wake. The world seemed to pause, taking a deep breath before the calm that would follow.",
+            "As the sun set behind the mountains, a warm golden light bathed the valley, casting long shadows across the ground. The air was crisp and cool, carrying the scent of pine trees and fresh earth. A soft breeze rustled the leaves, creating a gentle symphony of nature's sounds. In the distance, a small stream wound its way through the landscape, its clear waters sparkling in the fading light. It was a peaceful moment, a pause in time to reflect on the beauty of the natural world. The valley, with its towering peaks and lush greenery, felt like a sanctuary, untouched by the rush of modern life.",
+            "The city of New York never slept. It was a place where dreams were made, where opportunities were endless, and where the pace of life never slowed down. The streets were always crowded with people from all walks of life, each one with their own story and their own ambition. The skyline was dotted with iconic skyscrapers, each one a testament to the city's history and resilience. As the sun set, the city came alive with lights, the bright glow of neon signs illuminating the streets below. The air was thick with the energy of the people who called this city home, and there was a constant hum of activity that echoed through the night."
+        ];
 
-        startButton.addEventListener('click', () => {
-            startTime = new Date();
-            timerInterval = setInterval(() => {
-                const elapsedTime = Math.floor((new Date() - startTime) / 1000);
-                timerDisplay.textContent = `Time: ${elapsedTime}`;
-            }, 1000);
+        // Function to generate a random paragraph based on level
+        function generateRandomParagraph(level) {
+            let paragraph = "";
+            if (level === 1) {
+                paragraph = paragraphFragments[0];
+            } else if (level === 2) {
+                paragraph = paragraphFragments[Math.floor(Math.random() * 2) + 1];
+            } else if (level === 3) {
+                paragraph = paragraphFragments[Math.floor(Math.random() * 3) + 3];
+            }
+            return paragraph;
+        }
 
-            inputField.disabled = false;
-            inputField.focus();
+        // Initialize with the correct paragraph
+        text = generateRandomParagraph(currentLevel);
+        textArea.innerHTML = `<span id="current-char">${text.slice(0, 0)}</span><span id="remaining-text">${text.slice(0)}</span>`;
+
+        // Handle level selection change
+        levelSelect.addEventListener('change', () => {
+            currentLevel = parseInt(levelSelect.value);
+            text = generateRandomParagraph(currentLevel); // Update paragraph based on level
+            textArea.innerHTML = `<span id="current-char">${text.slice(0, 0)}</span><span id="remaining-text">${text.slice(0)}</span>`;
+            charactersTyped = 0;
+            errors = 0;
+            inputField.value = "";
+            wpm = 0;
+            accuracy = 100;
+            wpmDisplay.textContent = wpm;
+            accuracyDisplay.textContent = accuracy;
+            errorsDisplay.textContent = errors;
         });
 
+        // Start button click event
+        startButton.addEventListener('click', () => {
+            charactersTyped = 0;
+            errors = 0;
+            wpm = 0;
+            accuracy = 100;
+            inputField.disabled = false;
+            inputField.focus();
+            inputField.value = "";
+            startTime = new Date();
+            timerInterval = setInterval(updateTimer, 1000);
+            submitButton.disabled = false;
+            startButton.disabled = true;
+        });
+
+        // Update timer every second
+        function updateTimer() {
+            const elapsedTime = Math.floor((new Date() - startTime) / 1000);
+            timerDisplay.textContent = `Time: ${elapsedTime}s`;
+        }
+
+        // Handle input field typing
         inputField.addEventListener('input', () => {
             const currentChar = text[charactersTyped];
             const inputChar = inputField.value[charactersTyped];
@@ -86,25 +219,64 @@
                 errors++;
             }
 
+            // Update text display, highlighting missed letters in red
+            textArea.innerHTML =
+                `<span id="current-char">${text.slice(0, charactersTyped)}</span>` +
+                `<span class="missed-letter">${text.slice(charactersTyped).charAt(0)}</span>` +
+                `<span>${text.slice(charactersTyped + 1)}</span>`;
+
             if (charactersTyped === text.length) {
                 clearInterval(timerInterval);
                 endTime = new Date();
 
                 const elapsedTimeInSeconds = (endTime - startTime) / 1000;
-                const wordsTyped = charactersTyped / 5; // Assuming 5 characters per word
+                const wordsTyped = charactersTyped / 5;
 
-                const wpm = Math.round(wordsTyped / (elapsedTimeInSeconds / 60));
-                const accuracy = Math.round((charactersTyped - errors) / charactersTyped * 100);
+                wpm = Math.round(wordsTyped / (elapsedTimeInSeconds / 60));
+                accuracy = Math.round((charactersTyped - errors) / charactersTyped * 100);
 
                 wpmDisplay.textContent = wpm;
                 accuracyDisplay.textContent = `${accuracy}%`;
+                errorsDisplay.textContent = errors;
+
+                inputField.disabled = true;
+                submitButton.disabled = true;
+
+                showAchievements(wpm, accuracy);
+            }
+        });
+
+        submitButton.addEventListener('click', () => {
+            clearInterval(timerInterval); // Stop timer
+            showAchievements(wpm, accuracy);
+            addToHallOfFame(wpm, accuracy); // Add to Hall of Fame
+
+            alert("Test Submitted! Your performance has been recorded.");
+        });
+
+        // Function to show achievements
+        function showAchievements(wpm, accuracy) {
+            if (wpm >= 60) {
+                speedAchievement.textContent = "Main Character - 60+ WPM!";
+            } else if (wpm >= 45) {
+                speedAchievement.textContent = "Blessed Hands - 45+ WPM!";
+            } else if (wpm >= 30) {
+                speedAchievement.textContent = "Super Typer - 30+ WPM!";
             }
 
-            // Update UI
-            textArea.innerHTML = 
-                `<span id="current-char">${text.slice(0, charactersTyped)}</span>` + 
-                `<span>${text.slice(charactersTyped)}</span>`;
-        });
+            if (accuracy >= 95) {
+                accuracyAchievement.textContent = "Flawless Accuracy!";
+            } else if (accuracy >= 85) {
+                accuracyAchievement.textContent = "Great Accuracy!";
+            }
+        }
+
+        // Function to add to the Hall of Fame
+        function addToHallOfFame(wpm, accuracy) {
+            const newRecord = document.createElement("li");
+            newRecord.textContent = `WPM: ${wpm}, Accuracy: ${accuracy}%`;
+            hofList.appendChild(newRecord);
+        }
     </script>
 </body>
 </html>
